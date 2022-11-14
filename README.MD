@@ -2,7 +2,7 @@
 
 ## What is this?
 
-This is a program for MS-DOS to edit PCI configuration registers of any PCI device in the system.
+This is a program for MS-DOS and compatibles (FreeDOS, etc.) to edit PCI configuration registers of any PCI device in the system.
 
 ## Usage
 
@@ -51,11 +51,11 @@ This program currently only allows you to change the registers of the *first fun
 
 ## What can you do with this?
 
-With `PCIEDIT`, you can do register level tweaking of PCI devices to work around hardware or driver problems, or improve performance of a computer in MS-DOS or Windows 3.1/95/98/ME.
+With `PCIEDIT`, you can do register level tweaking of PCI devices to work around hardware or driver problems, or improve performance of a computer in DOS or Windows 3.1/95/98/ME.
 
 For this purpose, you may put `PCIEDIT` in your `AUTOEXEC.BAT` file.
 
-It can be run under Windows 9x as well, since these versions of Windows permit direct hardware port access for MS-DOS applications. Be careful though ;).
+It can be run under Windows 9x as well, since these versions of Windows permit direct hardware port access for DOS applications. Be careful though ;).
 
 # Building
 
