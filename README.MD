@@ -9,7 +9,9 @@ This is a program for MS-DOS to edit PCI configuration registers of any PCI devi
 `PCIEDIT.EXE <ven> <dev> [register list]`
 
 `ven`: This is the Vendor ID of the requested device. It must be a 16-bit hexadecimal number.
+
 `dev`: This is the Device ID of the requested device. It must be a 16-bit hexadecimal number.
+
 `register list`: (optional) This parameter specifies a file with a list of registers to change for this device. See below for the format of this file.
 
 If the `register list` parameter is omitted, the program just prints the current contents of the PCI device's configuration registers (if found).
