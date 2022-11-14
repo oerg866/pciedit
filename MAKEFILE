@@ -1,0 +1,20 @@
+CC = wcc
+AS = wasm
+LD = wlink
+CL = wcl
+
+CFLAGS = -3 -bt=dos
+LDFLAGS = SYSTEM DOS
+
+OBJ = main.obj pci.obj
+
+all : PCIEDIT.EXE RG2TXT.EXE
+
+RG2TXT.EXE :
+	$(CL) $(CFLAGS) -fo=RG2TXT.EXE RG2TXT.C
+
+PCIEDIT.EXE : $(OBJ) RG2TXT.EXE
+	$(LD) $(LDFLAGS) NAME PCIEDIT.EXE FILE {$(OBJ)}
+
+.c.obj : .AUTODEPEND
+		$(CC) $(CFLAGS) -fo=$@ $<
