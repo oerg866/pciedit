@@ -66,99 +66,99 @@ static void outportl(u16 port, u32 value)
 #endif
 
 
-u32 pci_read_32(u32 bus, u32 slot, u32 func, u32 offset)
+u32 pci_read_32(PCIDEVICE device, u32 offset)
 /* Reads DWORD from PCI config space. Assumes offset is DWORD-aligned. */
 {
-	u32 address = (bus << 16) | (slot << 11)
-		| (func << 8) | (offset & 0xFC)
+	u32 address = ((u32)device.bus << 16) | ((u32)device.slot << 11)
+		| ((u32)device.func << 8) | (offset & 0xFC)
 		| 0x80000000UL;
 	outportl(0xCF8, address);
 	return inportl(0xCFC);
 }
 
 
-u16 pci_read_16(u32 bus, u32 slot, u32 func, u32 offset) {
+u16 pci_read_16(PCIDEVICE device, u32 offset) {
 /* Reads WORD from PCI config space. Assumes offset is WORD-aligned. */
 
-	return (offset & 2) ? (u16) (pci_read_32(bus, slot, func, offset) >> 16)
-			: (u16) (pci_read_32(bus, slot, func, offset));
+	return (offset & 2) ? (u16) (pci_read_32(device, offset) >> 16)
+			: (u16) (pci_read_32(device, offset));
 }
 
-u8 pci_read_8(u32 bus, u32 slot, u32 func, u32 offset)
+u8 pci_read_8(PCIDEVICE device, u32 offset)
 /* Reads BYTE from PCI config space. */
 {
 	switch (offset & 3) {
-	case 3: return (u8) (pci_read_32(bus, slot, func, offset) >> 24);
-	case 2: return (u8) (pci_read_32(bus, slot, func, offset) >> 16);
-	case 1: return (u8) (pci_read_32(bus, slot, func, offset) >>  8);
-	case 0: return (u8) (pci_read_32(bus, slot, func, offset) >>  0);
+	case 3: return (u8) (pci_read_32(device, offset) >> 24);
+	case 2: return (u8) (pci_read_32(device, offset) >> 16);
+	case 1: return (u8) (pci_read_32(device, offset) >>  8);
+	case 0: return (u8) (pci_read_32(device, offset) >>  0);
 	default: return 0; /* to silence the compiler warning... */
 	}
 }
 
-void pci_write_32(u32 bus, u32 slot, u32 func, u32 offset, u32 value)
+void pci_write_32(PCIDEVICE device, u32 offset, u32 value)
 /* Writes DWORD to PCI config space. Assumes offset is DWORD-aligned. */
 {
-	u32 address = (bus << 16) | (slot << 11)
-		| (func << 8) | (offset & 0xFC)
+	u32 address = ((u32)device.bus << 16) | ((u32)device.slot << 11)
+		| ((u32)device.func << 8) | (offset & 0xFC)
 		| 0x80000000UL;
 	outportl(0xCF8, address);
 	outportl(0xCFC, value);
 }
 
-void pci_write_16(u32 bus, u32 slot, u32 func, u32 offset, u16 value)
+void pci_write_16(PCIDEVICE device, u32 offset, u16 value)
 /* Writes WORD to PCI config space. Assumes offset is WORD-aligned. */
 {
-	u32 temp = pci_read_32(bus, slot, func, offset);
+	u32 temp = pci_read_32(device, offset);
 	temp = (offset & 2) ? ((u32) value << 16) | (temp & 0xFFFF)
 			: ((u32) value) | (temp << 16);
-	pci_write_32(bus, slot, func, offset, temp);
+	pci_write_32(device, offset, temp);
 }
 
-void pci_write_8(u32 bus, u32 slot, u32 func, u32 offset, u8 value)
+void pci_write_8(PCIDEVICE device, u32 offset, u8 value)
 /* Writes BYTE to PCI config space. */
 {
-	u32 temp = pci_read_32(bus, slot, func, offset);
+	u32 temp = pci_read_32(device, offset);
 	switch (offset & 3) {
 	case 3: temp = (temp & 0x00FFFFFFUL) | ((u32) value << 24); break;
 	case 2: temp = (temp & 0xFF00FFFFUL) | ((u32) value << 16); break;
 	case 1: temp = (temp & 0xFFFF00FFUL) | ((u32) value <<  8); break;
 	case 0: temp = (temp & 0xFFFFFF00UL) | ((u32) value <<  0); break;
 	}
-	pci_write_32(bus, slot, func, offset, temp);
+	pci_write_32(device, offset, temp);
 }
 
 
-u16 pci_get_vendor(u8 bus, u8 slot, u8 func)
-/* Gets a PCI device's vendor ID for given bus, slot and function number. */
+u16 pci_get_vendor(PCIDEVICE device)
+/* Gets a PCI device's vendor ID for given device struct (bus/slot/function). */
 {
-	return pci_read_16(bus, slot, func, 0);
+	return pci_read_16(device, 0);
 }
 
-u16 pci_get_device(u8 bus, u8 slot, u8 func)
-/* Gets a PCI device's device ID for given bus, slot and function number. */
+u16 pci_get_device(PCIDEVICE device)
+/* Gets a PCI device's device ID for given device struct (bus/slot/function). */
 {
-	if (pci_get_vendor(bus, slot, func) != 0xFFFF) {
-		return pci_read_16(bus, slot, func, 2);
+	if (pci_get_vendor(device) != 0xFFFF) {
+		return pci_read_16(device, 2);
 	} else {
 		return 0xFFFF;
 	}
 }
 
-int pci_enum_dev(u8 bus, u8 slot)
-/* Enumerates a PCI device based on Bus & Slot numbers.
+int pci_enum_dev(PCIDEVICE device)
+/* Enumerates a PCI device based on device struct (bus/slot/function).
    Prints PCI Device Vendor and ID code on screen.
    Returns 1 if a device was found, 0 if not. */
 {
-	u16 ven = pci_get_vendor(bus, slot, 0);
+	u16 ven = pci_get_vendor(device);
 	u16 dev;
 
 	if (ven != 0xFFFF) {
-		dev = pci_get_device (bus, slot, 0);
+		dev = pci_get_device(device);
 		printf("PCI Device %02x:%02x:%02x - VEN_%04x&DEV_%04x\n",
-			   (int) bus,
-			   (int) slot,
-			   0,
+			   (int) device.bus,
+			   (int) device.slot,
+			   (int) device.func,
 			   ven,
 			   dev);
 		return 1;
@@ -167,27 +167,31 @@ int pci_enum_dev(u8 bus, u8 slot)
 	return 0;
 }
 
-int pci_find_dev_by_id(u16 ven, u16 dev, u8 *bus, u8* slot)
+int pci_find_dev_by_id(u16 ven, u16 dev, PCIDEVICE *device)
 /* Checks if a device with the given Vendor / device ID is present on the bus.
    Returns 1 if the device is found, 0 if not. 
-   If it is, the device's bus and slot numbers are written to 'bus' and 'slot'*/
+   If it is, the device's bus, slot and function IDs are written to the struct
+   pointed to by 'device' */
 {
-	u8 cur_bus;
-	u8 cur_slot;
+	PCIDEVICE current;
 	u16 found_ven;
 	u16 found_dev;
 
-	for (cur_bus = 0; cur_bus < PCI_BUS_MAX; ++cur_bus) {
-		for (cur_slot = 0; cur_slot <= PCI_SLOT_MAX; ++cur_slot) {
+	for (current.bus = 0; current.bus < PCI_BUS_MAX; ++current.bus) {
+		for (current.slot = 0; current.slot <= PCI_SLOT_MAX; ++current.slot) {
+			for (current.func = 0; current.func <= PCI_FUNC_MAX; ++current.func) {
 
-			found_ven = pci_get_vendor(cur_bus, cur_slot, 0);
-			found_dev = pci_get_device(cur_bus, cur_slot, 0);
+				found_ven = pci_get_vendor(current);
+				found_dev = pci_get_device(current);
 
-			if (found_ven == ven && found_dev == dev) {
-				*bus = cur_bus;
-				*slot = cur_slot;
-				pci_enum_dev(cur_bus, cur_slot);
-				return 1;
+				if (found_ven != 0xFFFF)
+					printf("%04x:%04x\n", (int)found_ven, (int)found_dev);
+
+				if (found_ven == ven && found_dev == dev) {
+					*device = current;
+					pci_enum_dev(current);
+					return 1;
+				}
 			}
 		}
 	}

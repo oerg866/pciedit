@@ -10,12 +10,6 @@
  * Refer to README.MD
  */
 
-/* 
-	!!!!!!!!!!!!! TODO !!!!!!!!!!!!!!
-	Allow this tool to work on ANY function, i.e. not just the first 
-	function device of a pci slot.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <dos.h>
@@ -24,10 +18,10 @@
 #include "TYPES.H"
 #include "PCI.H"
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 
-void print_regs(u8 bus, u8 slot) 
-/* Prints the PCI config registers of a given bus/slot number */
+void print_regs(PCIDEVICE device) 
+/* Prints the PCI config registers of a given device */
 {
 	u32 offset;
 
@@ -39,7 +33,7 @@ void print_regs(u8 bus, u8 slot)
 			printf("%1xx | ", (int)offset >> 4);
 
 		/* Read and print actual PCI config register content */
-		printf("%02x ", (int)pci_read_8(bus, slot, 0, offset));
+		printf("%02x ", (int)pci_read_8(device, offset));
 
 		if ((offset % 16) == 7) /* gap after 8 registers */
 			printf("   ");
@@ -50,7 +44,7 @@ void print_regs(u8 bus, u8 slot)
 	printf("\n");
 }
 
-int process_regs_txt(char *infile, u8 bus, u8 slot) 
+int process_regs_txt(char *infile, PCIDEVICE device) 
 /* Process register text file and set the contents accordingly */
 {
 	FILE *f = fopen(infile, "r");
@@ -74,7 +68,7 @@ int process_regs_txt(char *infile, u8 bus, u8 slot)
 		sscanf(line, "%x %x", &index, &value);
 		if (index >= 0 && index <= 255 && value >= 0 && value <= 255) {
 			/* Valid line, we can write to PCI register now */
-			pci_write_8(bus, slot, 0, index, value);
+			pci_write_8(device, index, value);
 		} else {
 			/* invalid line, ignore */
 			printf("Malformed line '%s'\n", line);
@@ -89,8 +83,7 @@ int process_regs_txt(char *infile, u8 bus, u8 slot)
 int main(int argc, char *argv[]) {
 	int ven = 0;
 	int dev = 0;
-	u8 bus = 0;
-	u8 slot = 0;
+	PCIDEVICE device;
 
 	printf("PCIEDIT Version %s\n", VERSION);
 	printf("(C)2022 Eric \"oerg866\" Voirin\n");
@@ -128,8 +121,8 @@ int main(int argc, char *argv[]) {
 	ven = (u16)strtoul(argv[1], NULL, 16);
 	dev = (u16)strtoul(argv[2], NULL, 16); 
 
-	if (!pci_find_dev_by_id(ven, dev, &bus, &slot)) {
-		printf("Device %04x:%04x not found.\n", (int)ven, (int)dev);
+	if (!pci_find_dev_by_id(ven, dev, &device)) {
+		printf("Device %04x:%04x not found.\n", ven, dev);
 		return -1; 
 	}
 
@@ -137,7 +130,7 @@ int main(int argc, char *argv[]) {
 
 	/* Print regs *before* changing anything */
 
-	print_regs(bus, slot);
+	print_regs(device);
 
 	/* If parameter for register file is missing, quit here */
 
@@ -147,10 +140,10 @@ int main(int argc, char *argv[]) {
 
 	/* Parse register file */
 
-	if (process_regs_txt(argv[3], bus, slot)) {
+	if (process_regs_txt(argv[3], device)) {
 		/* Success, print register contents *after* our modification */
 		printf("Registers AFTER writing:\n\n");
-		print_regs(bus, slot);
+		print_regs(device);
 		return 0;
 	} else {
 		return -1;

@@ -45,10 +45,6 @@ RG2TXT is an included program that lets you convert `RG` files output by **WPCRE
 
 ***WARNING***: Be aware that setting all these registers in bulk may very well lead to unintended effects and crashes. You should edit the resulting text file and only keep the register/value pairs that you specifically wish to set.
 
-## Limitations
-
-This program currently only allows you to change the registers of the *first function* (function 0). This will be changed in a future version.
-
 ## What can you do with this?
 
 With `PCIEDIT`, you can do register level tweaking of PCI devices to work around hardware or driver problems, or improve performance of a computer in DOS or Windows 3.1/95/98/ME.
