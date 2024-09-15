@@ -6,7 +6,7 @@ CL = wcl
 CFLAGS = -3 -bt=dos
 LDFLAGS = SYSTEM DOS
 
-OBJ = main.obj pci.obj
+OBJ = pci.obj main.obj
 
 all : PCIEDIT.EXE RG2TXT.EXE
 
