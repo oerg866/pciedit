@@ -15,11 +15,22 @@
 #include <dos.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "TYPES.H"
 #include "PCI.H"
 
 #define VERSION "0.4"
+/* Checks whether given string is regular file */
+static int is_file(const char *name) {
+    struct stat s;
+    if (stat(name, &s) != 0) {
+        return 0;    
+    } else {   
+        return S_ISREG(s.st_mode) ? 1 : 0;
+    }
+}
+
 /* Display the next <count> characters in <color).
    Small hack so we don't have to link with graph.lib */
 static void text_color(u8 color, u16 count) {
@@ -68,8 +79,8 @@ static void print_regs(const u8 *before, const u8 *after)
     printf("\n");
 }
 
-static int process_regs_txt(char *infile, PCIDEVICE device)
 /* Process register text file and set the contents accordingly */
+static int process_regs_txt(char *infile, PCIDEVICE device)
 {
     FILE *f = fopen(infile, "r");
     char *line = NULL;
@@ -104,6 +115,49 @@ static int process_regs_txt(char *infile, PCIDEVICE device)
     return 1;
 }
 
+static int process_regs_immediate(PCIDEVICE device, int count, char **pairs) {
+    const char *colon_at;
+    u32         index;
+    u8          value;
+    u8          old_value;
+    u16         ven = pci_get_vendor(device);
+    u16         dev = pci_get_device(device);
+
+    while (count--) {
+        /* Format is <index:value> hexadecimal, e.g. 40:FF */
+        
+        /* Find colon */
+        colon_at = strchr(*pairs, ':');
+        
+        /* Abort if there is no value */
+        if (colon_at == NULL || colon_at[1] == 0x00) {
+            return 0;
+        }
+        
+        colon_at += 1; /* Move to post-colon */
+       
+        index = (u32) strtoul(*pairs,   NULL, 16); /* It will stop at the colon */
+        value = (u8)  strtoul(colon_at, NULL, 16);
+
+        old_value = pci_read_8(device, index);
+
+        if (index > 255) {
+            return 0;
+        }
+
+        printf("[%04x:%04x] Reg. [%02lx]: <%02x> -> <%02x>\n", ven, dev, index, (u16) old_value, (u16) value);
+
+        /* Set the actual register */
+        pci_write_8(device, index, value);
+
+        /* Next pair */
+        pairs = &pairs[1];
+    }
+
+    return 1;
+}
+
+/* Dumps all devices' config space to separate files in the 'dir' directory */
 static int dump(const char *dir) {
     PCIDEVICE *device = NULL;
     char outpath[256] = { 0, };
@@ -140,6 +194,7 @@ static int dump(const char *dir) {
     return device_count;
 }
 
+/* List all PCI devices */
 static void list (void) {
     PCIDEVICE *current = NULL;
 
@@ -187,10 +242,18 @@ int main(int argc, char *argv[]) {
     if (argc < 3) {
         printf("PCIEDIT lets you get/set PCI device configuration registers\n");
         printf("Usage:\n");
-        printf("         PCIEDIT.EXE <ven> <dev> [register list]\n");
+        printf("         PCIEDIT.EXE <ven> <dev>\n");
+        printf("         PCIEDIT.EXE <ven> <dev> <register list file>\n");
+        printf("         PCIEDIT.EXE <ven> <dev> <reg1:val1> <reg2:val2> <reg...:val...>\n");
         printf("         PCIEDIT.EXE -d <dumpdir>\n");
         printf("         PCIEDIT.EXE -l\n");
-        printf("Example: PCIEDIT.EXE 10DE 2044 REGISTERS.TXT\n");
+        printf("\n");
+        printf("Example - Display PCI config registers:\n");
+        printf("         PCIEDIT.EXE 10DE 2044\n");
+        printf("Example - Import PCI config register configuration from file:\n");
+        printf("         PCIEDIT.EXE 10DE 2044 REGISTERS.TXT\n");
+        printf("Example - Change PCI config registers ad-hoc\n");
+        printf("         PCIEDIT.EXE 10DE 2044 42:f0 43:f1 91:ee\n");
         printf("\n");
         printf("If register list is missing, the current configuration register contents\n");
         printf("of this device are printed)\n");
@@ -201,8 +264,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    printf("\n\n");
-
     /* Check if we wanna dump */
 
     if (strcmp(argv[1], "-d") == 0) {
@@ -212,7 +273,7 @@ int main(int argc, char *argv[]) {
     /* Check if requested vendor / device ID is present in te system */
 
     ven = (u16)strtoul(argv[1], NULL, 16);
-    dev = (u16)strtoul(argv[2], NULL, 16); 
+    dev = (u16)strtoul(argv[2], NULL, 16);
 
     if (!pci_find_dev_by_id(ven, dev, &device)) {
         printf("Device %04x:%04x not found.\n", ven, dev);
@@ -224,21 +285,33 @@ int main(int argc, char *argv[]) {
     /* Take snapshot of current config space */
     pci_read_bytes(device, regs_before, 0, 256);
 
-
-    /* If parameter for register file is missing, quit here */
+    /* If parameter for register file is missing, print and quit here */
 
     if (argc == 3) {
+        print_regs(regs_before, regs_before);
         return 0;
+    }
+    
+    /* We have more arguments, decide whether we are supposed to import reg
+       file or do ad-hoc changes... */
+
+    if (is_file(argv[3])) {
+        ret = process_regs_txt(argv[3], device);
+    } else {
+        /* Format arguments for immediate register parsing.
+           Skip argv[0], ven and dev */
+        ret = process_regs_immediate(device, argc - 3, &argv[3]);
     }
 
     /* Parse register file */
 
-    if (process_regs_txt(argv[3], device)) {
+    if (ret) {
         /* Success, print register contents *after* our modification */
         pci_read_bytes(device, regs_after, 0, 256);
         print_regs(regs_before, regs_after);
         return 0;
     } else {
+        printf("Quitting due to error.\n");
         return -1;
     }
 
