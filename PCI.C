@@ -21,9 +21,10 @@ static u32 inportl(u16 port)
 /* Emulates 32-bit I/O port reads using
    manual prefixed 32-bit instructions */
 {
-    u16 retl, reth;
+    u16 retl = 0;
+    u16 reth = 0;
     __asm {
-        db 0x50                     /* push eax */
+        db 0x66, 0x50               /* push eax */
         push bx
         push dx
         mov dx, port
@@ -33,7 +34,7 @@ static u32 inportl(u16 port)
         mov reth, ax
         pop dx
         pop bx
-        db 0x58                     /* pop eax */
+        db 0x66, 0x58               /* pop eax */
     }
     return (u32) retl | ((u32) reth << 16);
 }
@@ -46,8 +47,8 @@ static void outportl(u16 port, u32 value)
     u16 valh = (u16) (value >> 16);
 
     __asm {
-        db 0x50                     /* push eax */
-        db 0x53                     /* push ebx */
+        db 0x66, 0x50               /* push eax */
+        db 0x66, 0x53               /* push ebx */
         push dx
 
         mov ax, valh
@@ -61,8 +62,8 @@ static void outportl(u16 port, u32 value)
         db 0x66, 0xEF               /* out dx, eax */
 
         pop dx
-        db 0x5B                     /* pop ebx */
-        db 0x58                     /* pop eax */
+        db 0x66, 0x5B               /* pop ebx */
+        db 0x66, 0x58               /* pop eax */
     }
 }
 #endif
