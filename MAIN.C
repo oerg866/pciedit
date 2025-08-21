@@ -20,7 +20,8 @@
 #include "TYPES.H"
 #include "PCI.H"
 
-#define VERSION "0.4"
+#define VERSION "0.5"
+
 /* Checks whether given string is regular file */
 static int is_file(const char *name) {
     struct stat s;
@@ -214,9 +215,10 @@ int main(int argc, char *argv[]) {
     u8          regs_before[256];
     u8          regs_after [256];
 
+    printf("\n");
     printf("PCIEDIT Version %s\n", VERSION);
-    printf("(C)2024 E. Voirin (oerg866)\n");
-    printf("http://github.com/oerg866\n");
+    printf("        (C)2025 E. Voirin (oerg866)\n");
+    printf("        http://github.com/oerg866\n");
     printf("----------------------------------------\n");
 
     /* Note: No guarding against weird and invalid inputs are made...
