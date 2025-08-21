@@ -20,27 +20,50 @@
 #include "PCI.H"
 
 #define VERSION "0.4"
+/* Display the next <count> characters in <color).
+   Small hack so we don't have to link with graph.lib */
+static void text_color(u8 color, u16 count) {
+    fflush(stdout);
+    __asm {
+        mov ah, 0x09
+        mov al, 0x20
+        mov bl, color
+        mov bh, 0x00
+        mov cx, count
+        int 0x10
+    }
+}
 
-static void print_regs(PCIDEVICE device)
 /* Prints the PCI config registers of a given device */
+static void print_regs(const u8 *before, const u8 *after)
 {
     u32 offset;
+    
+    printf("\n");
+    printf("  | 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F \n");
+    printf("--|------------------------------------------------\n");
 
-    printf("   | x0 x1 x2 x3 x4 x5 x6 x7    x8 x9 xA xB xC xD xE xF\n");
-    printf("---|---------------------------------------------------\n");
+    for (offset = 0; offset < 256; ++offset) {
+        if ((offset % 16) == 0) { /* after a new line, write header column */
+            printf("%02x|", offset & 0xF0);
+        }
 
-    for (offset = 0; offset <= 255; ++offset) {
-        if ((offset % 16) == 0) /* after a new line, write header column */
-            printf("%1xx | ", (int)offset >> 4);
+        /* Odd even coloring, green if changed, white/gray if not. */
+
+        if (before[offset] == after[offset]) {
+            text_color(offset % 2 ? 7 : 15, 2);
+        } else {
+            text_color(offset % 2 ? 2 : 10, 2);
+        }
+        
 
         /* Read and print actual PCI config register content */
-        printf("%02x ", (int)pci_read_8(device, offset));
-
-        if ((offset % 16) == 7) /* gap after 8 registers */
-            printf("   ");
+        printf("%02x ", after[offset]);
 
         if ((offset % 16) == 15) /* new line after 16 registers */
-            printf("\n");
+            printf("\r\n");
+
+
     }
     printf("\n");
 }
@@ -129,9 +152,12 @@ static void list (void) {
 }
 
 int main(int argc, char *argv[]) {
-    u16 ven = 0;
-    u16 dev = 0;
-    PCIDEVICE device;
+    PCIDEVICE   device;
+    u16         ven = 0;
+    u16         dev = 0;
+    int         ret = 0;
+    u8          regs_before[256];
+    u8          regs_after [256];
 
     printf("PCIEDIT Version %s\n", VERSION);
     printf("(C)2024 E. Voirin (oerg866)\n");
@@ -195,9 +221,9 @@ int main(int argc, char *argv[]) {
 
     printf("\n");
 
-    /* Print regs *before* changing anything */
+    /* Take snapshot of current config space */
+    pci_read_bytes(device, regs_before, 0, 256);
 
-    print_regs(device);
 
     /* If parameter for register file is missing, quit here */
 
@@ -209,8 +235,8 @@ int main(int argc, char *argv[]) {
 
     if (process_regs_txt(argv[3], device)) {
         /* Success, print register contents *after* our modification */
-        printf("Registers AFTER writing:\n\n");
-        print_regs(device);
+        pci_read_bytes(device, regs_after, 0, 256);
+        print_regs(regs_before, regs_after);
         return 0;
     } else {
         return -1;
