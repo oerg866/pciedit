@@ -73,6 +73,8 @@ static inline int pci_is_device(PCIDEVICE device) {
 }
 
 static inline int pci_is_multifunction_device(PCIDEVICE device) {
+    /* We only should look at function 0 to see if we are in multifunc */
+    device.func = 0x00;
     return pci_is_device(device) ? pci_read_8(device, 0x0E) >> 7 : 0;
 }
 
