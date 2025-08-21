@@ -8,13 +8,13 @@ LDFLAGS = SYSTEM DOS
 
 OBJ = pci.obj main.obj
 
-all : PCIEDIT.EXE RG2TXT.EXE
+all : PCIEDIT.exe RG2TXT.EXE
 
 RG2TXT.EXE :
-	$(CL) $(CFLAGS) -fo=RG2TXT.EXE RG2TXT.C
+    $(CL) $(CFLAGS) -fo=RG2TXT.EXE RG2TXT.C
 
-PCIEDIT.EXE : $(OBJ) RG2TXT.EXE
-	$(LD) $(LDFLAGS) NAME PCIEDIT.EXE FILE {$(OBJ)}
+PCIEDIT.exe : $(OBJ) RG2TXT.EXE
+    $(LD) $(LDFLAGS) NAME PCIEDIT FILE {$(OBJ)}
 
 .c.obj : .AUTODEPEND
-		$(CC) $(CFLAGS) -fo=$@ $<
+        $(CC) $(CFLAGS) -fo=$@ $<
